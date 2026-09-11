@@ -1,6 +1,6 @@
 # QS_2026-2_DeepResearch_Atividade1
 
-Repositório de trabalho da equipe para a **AV1 de Qualidade de Software (2026.2)** — Especificação e avaliação inicial da qualidade de uma aplicação de IA generativa.
+Este é o repositório de trabalho da nossa equipe para a **AV1 de Qualidade de Software (2026.2)**: especificação e avaliação inicial da qualidade de uma aplicação de IA generativa.
 
 **Projeto analisado (item 20 da lista da atividade):** [Alibaba-NLP/DeepResearch](https://github.com/Alibaba-NLP/DeepResearch)
 **Recorte da equipe:** fontes, planejamento e confabulação no núcleo de inferência (`inference/react_agent.py`, `inference/tool_*.py`, `inference/prompt.py`).
