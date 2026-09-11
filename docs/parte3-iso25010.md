@@ -5,13 +5,13 @@
 
 ---
 
-Seis características do modelo de qualidade de produto da ISO/IEC 25010:2023 foram selecionadas por pertinência direta ao recorte da equipe (fontes, planejamento e confabulação) e aos requisitos da Parte 2.
+Escolhemos seis das características do modelo de qualidade de produto da ISO/IEC 25010:2023 — as que conversam mais diretamente com o recorte da equipe (fontes, planejamento e confabulação) e com os requisitos levantados na Parte 2. Para cada uma, explicamos por que ela importa aqui, qual o risco observado, em que trecho de código nos apoiamos e onde a nossa análise para de valer.
 
 ## 1. Adequação funcional (*Functional suitability*)
 
 | | |
 |---|---|
-| **Pertinência** | A função central do produto é "responder perguntas de pesquisa com base em evidência recuperada" — se a resposta não é rastreável a uma fonte, a característica central do produto falha, mesmo que o texto pareça correto. |
+| **Pertinência** | A função central do DeepResearch é responder perguntas de pesquisa com base em evidência recuperada. Se a resposta não é rastreável a uma fonte, essa função falha por dentro, mesmo que o texto pareça correto e bem escrito. |
 | **Risco** | Alto — resposta fluente e incorreta (confabulação) é mais perigosa que um erro óbvio, porque é mais difícil de detectar pelo usuário. |
 | **Requisito relacionado** | RQ-01, RQ-04 |
 | **Método de avaliação** | Inspeção do contrato de saída em `inference/prompt.py` (`SYSTEM_PROMPT`, `EXTRACTOR_PROMPT`) e rastreamento do fluxo de evidência do `visit`/`search` até o `<answer>` final em `react_agent.py`. |
@@ -22,7 +22,7 @@ Seis características do modelo de qualidade de produto da ISO/IEC 25010:2023 fo
 
 | | |
 |---|---|
-| **Pertinência** | O agente opera em múltiplos turnos, dependendo de sucesso repetido de chamadas de rede (LLM + 4 serviços externos); falha em qualquer elo pode interromper uma pesquisa longa. |
+| **Pertinência** | O agente depende de sucesso repetido em múltiplas chamadas de rede — o LLM de planejamento mais quatro serviços externos (busca, leitura de página, sumarização e sandbox). Uma falha em qualquer elo dessa cadeia pode interromper uma pesquisa que já estava avançada. |
 | **Risco** | Médio-alto — perguntas complexas podem levar dezenas de chamadas; uma falha não tratada no meio do processo desperdiça todo o trabalho já feito. |
 | **Requisito relacionado** | RQ-06 |
 | **Método de avaliação** | Leitura de `call_server` (retry com backoff exponencial) em `react_agent.py` e de `readpage_jina`/`html_readpage_jina` em `tool_visit.py`. |
@@ -37,7 +37,7 @@ Seis características do modelo de qualidade de produto da ISO/IEC 25010:2023 fo
 | **Risco** | Crítico se a execução de código escapasse do isolamento; médio para exposição de credenciais via variável de ambiente compartilhada entre tools. |
 | **Requisito relacionado** | RQ-03, RQ-07 |
 | **Método de avaliação** | Leitura de `inference/tool_python.py` e de `.env.example`. |
-| **Evidência** | Nenhuma chamada local `exec()`/`eval()`: todo código roda via `run_code(RunCodeRequest(...))` contra um endpoint remoto do SandboxFusion, escolhido aleatoriamente entre `SANDBOX_FUSION_ENDPOINTS` (linhas 21-25, 79-93). Por outro lado, `.env.example` concentra 7+ segredos de provedores diferentes em texto simples, sem segregação por tool. |
+| **Evidência** | Nenhuma chamada local `exec()`/`eval()`: todo código roda via `run_code(RunCodeRequest(...))` contra um endpoint remoto do SandboxFusion, escolhido aleatoriamente entre `SANDBOX_FUSION_ENDPOINTS` (linhas 21-25, 79-93). Por outro lado, o `.env.example` reúne 6 chaves de acesso de 4 serviços diferentes (Serper, Jina, o LLM sumarizador e a Alibaba Cloud, via DashScope e IDP) em texto simples, sem nenhuma segregação por ferramenta. |
 | **Limitação** | A segurança do próprio serviço SandboxFusion (isolamento real do container remoto) está fora do escopo deste repositório e não foi avaliada. |
 
 ## 4. Eficiência de desempenho (*Performance efficiency*)
@@ -75,4 +75,4 @@ Seis características do modelo de qualidade de produto da ISO/IEC 25010:2023 fo
 
 ---
 
-**Referências:** `inference/react_agent.py`, `inference/tool_python.py`, `inference/tool_visit.py`, `inference/tool_search.py`, `.env.example` — https://github.com/Alibaba-NLP/DeepResearch.
+**Referências:** `inference/react_agent.py`, `inference/tool_python.py`, `inference/tool_visit.py`, `inference/tool_search.py`, `inference/prompt.py`, `.env.example` — https://github.com/Alibaba-NLP/DeepResearch.
