@@ -7,68 +7,68 @@
 
 ## 1. Recorte escolhido e por quê
 
-O DeepResearch é um agente ReAct multi-turno que responde perguntas de pesquisa combinando um LLM de 30B parâmetros (MoE, 3,3B ativados) com ferramentas de busca web (`search`), leitura de página (`visit`), busca acadêmica (`google_scholar`), execução de código (`PythonInterpreter`) e leitura de arquivos (`parse_file`). O núcleo do sistema está em `inference/react_agent.py`, `inference/tool_*.py` e `inference/prompt.py`.
+O DeepResearch é um agente ReAct multi-turno: ele responde perguntas de pesquisa combinando um LLM de 30 bilhões de parâmetros (arquitetura MoE, com 3,3 bilhões ativados por token) a um conjunto de ferramentas — busca web (`search`), leitura de página (`visit`), busca acadêmica (`google_scholar`), execução de código (`PythonInterpreter`) e leitura de arquivos (`parse_file`). O núcleo do sistema mora em três arquivos principais: `inference/react_agent.py`, os módulos `inference/tool_*.py` e `inference/prompt.py`.
 
-Delimitamos a avaliação de qualidade a três fluxos interligados, que são exatamente onde a confiabilidade de um agente de "deep research" é mais frágil:
+Como equipe, decidimos não tentar cobrir o projeto inteiro — ele é grande demais para isso em uma AV1. Escolhemos delimitar a avaliação a três fluxos que se conectam entre si e que são, na nossa leitura, onde a confiabilidade de um agente de "deep research" fica mais exposta:
 
-1. **Fontes** — como o agente recupera, resume e (não) cita evidências (`tool_visit.py`, `EXTRACTOR_PROMPT`).
-2. **Planejamento** — como o loop ReAct decide entre pensar, chamar ferramenta e responder (`_run` em `react_agent.py`).
-3. **Confabulação** — o quanto o contrato de prompt (`SYSTEM_PROMPT`) previne ou permite que o modelo afirme algo sem lastro em evidência recuperada.
+1. **Fontes** — como o agente recupera, resume e (não) cita as evidências que encontra (`tool_visit.py`, `EXTRACTOR_PROMPT`).
+2. **Planejamento** — como o loop ReAct decide entre pensar, chamar uma ferramenta ou já responder (`_run`, em `react_agent.py`).
+3. **Confabulação** — até que ponto o contrato de prompt (`SYSTEM_PROMPT`) impede, ou permite, que o modelo afirme algo sem nenhum lastro em evidência recuperada.
 
-Não avaliamos o processo de treinamento do modelo (RL, dados sintéticos) nem os 11 subprojetos irmãos em `WebAgent/`, que replicam padrões semelhantes com pequenas variações — o foco é o pipeline de inferência oficial documentado no README como caminho de uso (`inference/`).
+Ficaram fora do nosso recorte o processo de treinamento do modelo (RL, geração de dados sintéticos) e os 13 subprojetos irmãos que vivem dentro de `WebAgent/` (WebDancer, WebSailor, WebWatcher, entre outros), que reaproveitam ideias parecidas com variações próprias. O motivo é simples: o caminho de uso oficial, documentado no README do repositório, é o pipeline de inferência em `inference/`, e foi nele que concentramos a leitura de código.
 
 ## 2. Partes interessadas (stakeholders)
 
 | # | Parte interessada | Objetivo | Expectativa de qualidade | Possível dano se a qualidade falhar | Evidência desejada | Responsabilidade |
 |---|---|---|---|---|---|---|
 | 1 | **Pesquisador/usuário final** que faz perguntas de pesquisa profunda (acadêmico, analista, jornalista) | Obter uma resposta correta, com fontes verificáveis, para uma pergunta complexa | Toda afirmação factual relevante vem acompanhada de uma fonte rastreável; incerteza é sinalizada quando a evidência é fraca | Tomar decisão (citar em trabalho, publicar, investir) com base em fato inventado (confabulação) apresentado com confiança | Resposta final (`<answer>`) com URLs/fontes associadas a cada afirmação | Verificar a fonte antes de usar a resposta em contexto crítico |
-| 2 | **Mantenedores do projeto** (Tongyi Lab / Alibaba-NLP) | Manter reputação técnica e acadêmica do projeto (paper arXiv 2510.24701, benchmarks públicos) | O agente se comporta de forma consistente com o que o paper reivindica (SOTA em HLE, BrowseComp etc.) | Casos públicos de confabulação ou prompt injection viram crítica pública e desgastam a credibilidade do projeto | Taxa de acerto/citação correta em benchmarks e em auditorias externas como esta | Documentar limitações conhecidas no README/paper |
-| 3 | **Desenvolvedor integrador / self-host** que baixa o repositório, configura `.env` com chaves próprias (Serper, Jina, OpenAI-compatible, SandboxFusion) e expõe o agente em um produto próprio | Reaproveitar o núcleo `inference/` como componente de um sistema maior | As ferramentas falham de forma previsível (mensagem controlada), sem vazar segredos nem travar o processo hospedeiro | Falha de rede em `tool_search`/`tool_visit` propaga exceção não tratada para o sistema hospedeiro; chave de API exposta em log | Testes de robustez das tools sob falha de rede (Seção 7, casos CT-13) | Isolar/tratar exceções antes de expor a terceiros |
-| 4 | **Comunidade acadêmica / avaliadores de benchmark** que reproduzem HLE, BrowseComp, FRAMES etc. usando `evaluation/evaluate_*_official.py` | Reproduzir os números do paper de forma confiável | O critério de avaliação (LLM-como-juiz) é estável o suficiente para comparação entre modelos | Resultados de benchmark não reprodutíveis por não-determinismo do próprio avaliador (também um LLM) | Múltiplas execuções do mesmo benchmark com variância documentada | Relatar desvio padrão / variabilidade nos números publicados |
+| 2 | **Mantenedores do projeto** (Tongyi Lab / Alibaba-NLP) | Manter a reputação técnica e acadêmica do projeto (paper no arXiv, benchmarks públicos) | O agente se comporta de forma consistente com o que o paper reivindica (desempenho de ponta em HLE, BrowseComp etc.) | Casos públicos de confabulação ou prompt injection viram crítica pública e desgastam a credibilidade do projeto | Taxa de acerto/citação correta em benchmarks e em auditorias externas como esta | Documentar limitações conhecidas no README/paper |
+| 3 | **Desenvolvedor integrador / self-host** que baixa o repositório, configura o `.env` com chaves próprias (Serper, Jina, provedor OpenAI-compatível, SandboxFusion) e expõe o agente em um produto próprio | Reaproveitar o núcleo `inference/` como componente de um sistema maior | As ferramentas falham de forma previsível, com mensagem controlada, sem vazar segredos nem travar o processo hospedeiro | Falha de rede em `tool_search`/`tool_visit` propaga uma exceção não tratada para o sistema hospedeiro; chave de API exposta em log | Testes de robustez das tools sob falha de rede (Seção 7, caso CT-13) | Isolar e tratar exceções antes de expor a terceiros |
+| 4 | **Comunidade acadêmica / avaliadores de benchmark** que reproduzem HLE, BrowseComp, FRAMES etc. usando os scripts `evaluation/evaluate_*_official.py` | Reproduzir os números do paper de forma confiável | O critério de avaliação (um LLM atuando como juiz) é estável o suficiente para comparar modelos entre si | Resultados de benchmark que não se reproduzem, por causa do não determinismo do próprio avaliador (que também é um LLM) | Múltiplas execuções do mesmo benchmark, com a variância documentada | Relatar desvio padrão / variabilidade nos números publicados |
 
 ## 3. Contexto de uso
 
-- **Modo de operação:** processamento em lote sobre um arquivo `.jsonl`/`.json` de perguntas (`eval_data/`), não um chat interativo dentro do núcleo `inference/` — a interação turno-a-turno acontece *dentro* do loop ReAct entre o LLM e as ferramentas, não entre o LLM e um humano em tempo real.
-- **Modelo e serving:** LLM local via vLLM (`http://127.0.0.1:{planning_port}/v1`, ver `inference/react_agent.py` linha 62) ou remoto via OpenRouter (README, seção "6. You can use OpenRouter's API").
-- **Ferramentas externas:** Serper (busca), Jina AI (leitura de página via `r.jina.ai`), um segundo LLM OpenAI-compatível para sumarização (`API_KEY`/`API_BASE` em `.env.example`), DashScope (parsing de arquivo) e SandboxFusion (execução de Python).
-- **Dados:** perguntas e (opcionalmente) arquivos anexados pelo usuário (`eval_data/file_corpus/`); nenhuma persistência de histórico de conversa é definida no núcleo — cada item do `.jsonl` é uma sessão isolada.
-- **Segredos:** ficam em `.env` (listado em `.gitignore`), mas o **conteúdo de arquivos enviados pelo usuário sai para um serviço de terceiro** (DashScope) quando `parse_file` é usado — implicação de privacidade relevante para a Seção 5 (RQ-03).
+O DeepResearch roda em lote: ele processa um arquivo `.jsonl`/`.json` de perguntas (pasta `eval_data/`), não é um chat interativo. A "conversa" turno a turno acontece dentro do loop ReAct, entre o LLM e as ferramentas — não entre o LLM e uma pessoa em tempo real.
+
+O modelo pode rodar localmente via vLLM, atrás de `http://127.0.0.1:{planning_port}/v1` (`inference/react_agent.py`, linha 62), ou remotamente via OpenRouter, seguindo as instruções da seção 6 do README. Ao longo da execução, o agente conversa com quatro serviços externos: Serper para busca, Jina AI para ler páginas (via `r.jina.ai`), um segundo LLM OpenAI-compatível que resume o conteúdo lido (configurado por `API_KEY`/`API_BASE` no `.env.example`) e o SandboxFusion, que executa o código Python gerado pelo modelo. Quando o usuário anexa arquivos, entra ainda um quinto caminho: para vídeo e áudio (`.mp4`, `.mp3`), o processamento passa pela API da DashScope (`DASHSCOPE_API_KEY`); para os demais formatos (PDF, DOCX, planilhas etc.), o repositório usa por padrão o serviço de IDP da Alibaba Cloud (`docmind-api`, chaves `IDP_KEY_ID`/`IDP_KEY_SECRET`, em `file_tools/idp.py`). Nenhuma dessas informações — pergunta do usuário, arquivo anexado, conteúdo de página visitada — fica persistida entre execuções: cada linha do `.jsonl` é tratada como uma sessão isolada.
+
+As chaves de API ficam em `.env`, que está listado no `.gitignore` (então não vão parar no repositório por acidente). Mas isso não resolve o problema de privacidade de fundo: sempre que `parse_file` é usado, o conteúdo do arquivo do usuário sai da máquina local e vai para um serviço de terceiro — DashScope ou o IDP da Alibaba Cloud, dependendo do tipo de arquivo. É um ponto relevante para os requisitos de privacidade que aparecem na Seção 5 (RQ-03).
 
 ## 4. Supervisão humana
 
-Não há nenhuma etapa de aprovação humana **dentro** do loop (`_run` em `react_agent.py`): o agente decide sozinho quando buscar, visitar, executar código e finalizar com `<answer>`. As únicas travas existentes são técnicas, não humanas:
+Dentro do loop principal (`_run`, em `react_agent.py`) não existe nenhuma etapa de aprovação humana: o agente decide sozinho quando buscar, quando visitar uma página, quando executar código e quando já pode finalizar com `<answer>`. As únicas travas que existem são técnicas, não humanas:
 
-- `MAX_LLM_CALL_PER_RUN` = 100 chamadas de LLM por pergunta (variável de ambiente, linha 29).
-- Limite de tempo de execução: 150 minutos por pergunta (linha 140).
-- Limite de contexto: 110×1024 tokens, com corte forçado para resposta final ao ultrapassar (linhas 186–193).
+- `MAX_LLM_CALL_PER_RUN`, no valor padrão de 100 chamadas de LLM por pergunta (linha 29, configurável por variável de ambiente).
+- Um limite de tempo de execução de 150 minutos por pergunta (linha 140).
+- Um limite de contexto de 110×1024 tokens, que força o agente a fechar a resposta quando é ultrapassado (linhas 186–193).
 
-Ou seja: a supervisão humana, quando existe, é **externa e posterior** — alguém lê a resposta final depois que o processo já terminou. Isso eleva a importância dos requisitos de rastreabilidade e sinalização de incerteza (Seção 5), já que não há "humano no loop" para interromper uma linha de raciocínio equivocada em andamento.
+Na prática, a supervisão humana — quando acontece — é externa e vem depois: alguém só vai ler a resposta final quando o processo já tiver terminado. Isso torna mais importantes os requisitos de rastreabilidade e de sinalização de incerteza que discutimos na Seção 5, já que não existe um "humano no loop" capaz de interromper uma linha de raciocínio equivocada enquanto ela ainda está em andamento.
 
 ## 5. Decisões apoiadas pela resposta do agente
 
-A saída é o conteúdo dentro de `<answer></answer>` — apresentado, pelo prompt de sistema, como "the definitive response" (`inference/prompt.py`, linha 1). Isso é usado para:
+A saída do agente é o texto dentro de `<answer></answer>`, que o próprio prompt de sistema descreve como "the definitive response" (`inference/prompt.py`, linha 1). Esse conteúdo é usado para pelo menos três coisas:
 
-- Fundamentar afirmações em textos, relatórios ou artigos que o usuário está escrevendo.
-- Servir de entrada para o "LLM-como-juiz" nos scripts de `evaluation/`, decidindo se a resposta está `"correct": "yes"/"no"`.
-- Potencialmente alimentar decisões downstream em produtos que integrem o núcleo `inference/` como biblioteca.
+- Fundamentar afirmações em textos, relatórios ou artigos que a pessoa usuária está escrevendo.
+- Servir de entrada para o "LLM-como-juiz" nos scripts de `evaluation/`, que decide se a resposta é `"correct": "yes"` ou `"no"`.
+- Alimentar, potencialmente, decisões em produtos que integrem o núcleo `inference/` como biblioteca.
 
 ## 6. Erros aceitáveis vs. inaceitáveis
 
 | Categoria | Aceitável | Inaceitável |
 |---|---|---|
-| Precisão factual | Pequena imprecisão em resumo de conteúdo muito longo após truncamento sinalizado (`truncate_to_tokens`, `tool_visit.py`) | Afirmar um fato como certo sem qualquer evidência recuperada (confabulação silenciosa) |
-| Fontes | Não encontrar página relevante e declarar isso explicitamente | Citar uma URL ou dado que não veio de nenhuma chamada real de `search`/`visit`/`google_scholar` |
-| Conflito de evidências | Reportar duas visões quando as fontes divergem genuinamente | Escolher arbitrariamente uma fonte entre duas conflitantes sem mencionar a divergência |
-| Robustez operacional | Retornar mensagem de erro controlada quando uma tool falha (ex.: `"[visit] Failed to read page."`) | Propagar exceção não tratada que interrompe o processo do usuário integrador |
-| Manipulação externa | Ignorar formatação estranha em uma página lida | Seguir instruções escondidas dentro do HTML de uma página visitada (prompt injection via conteúdo — ver CT-10, Seção 7) |
+| Precisão factual | Pequena imprecisão em resumo de conteúdo muito longo, após um truncamento sinalizado (`truncate_to_tokens`, `tool_visit.py`) | Afirmar um fato como certo sem nenhuma evidência recuperada — confabulação silenciosa |
+| Fontes | Não encontrar uma página relevante e dizer isso com todas as letras | Citar uma URL ou um dado que não veio de nenhuma chamada real de `search`, `visit` ou `google_scholar` |
+| Conflito de evidências | Reportar duas visões quando as fontes realmente divergem | Escolher uma fonte entre duas conflitantes, arbitrariamente, sem mencionar que havia divergência |
+| Robustez operacional | Retornar uma mensagem de erro controlada quando uma ferramenta falha (por exemplo, `"[visit] Failed to read page."`) | Deixar vazar uma exceção não tratada que interrompe o processo de quem integrou o agente |
+| Manipulação externa | Ignorar uma formatação estranha em uma página lida | Seguir instruções escondidas dentro do HTML de uma página visitada — prompt injection via conteúdo, ver CT-10 na Seção 7 |
 
 ## 7. Consequências de respostas incorretas
 
-- **Para o pesquisador:** decisão de pesquisa mal fundamentada, citação inexistente em trabalho acadêmico, retrabalho ao descobrir o erro tardiamente.
-- **Para o projeto:** dano reputacional se casos de confabulação/prompt-injection forem expostos publicamente (o projeto tem visibilidade alta — >14 mil "trendshift", cobertura em blog e paper arXiv).
-- **Para o integrador:** falha em cascata no sistema hospedeiro se uma exceção de rede não tratada não for isolada (ver Seção 5, RQ-06).
-- **Para a comunidade de benchmark:** conclusões de comparação entre modelos distorcidas se a variabilidade do "LLM-como-juiz" não for reportada (ver Seção 8).
+- **Para quem pesquisa:** uma decisão mal fundamentada, uma citação que não existe em um trabalho acadêmico, retrabalho quando o erro é descoberto tarde demais.
+- **Para o projeto:** dano reputacional se casos de confabulação ou prompt injection forem expostos publicamente — o DeepResearch tem visibilidade considerável (repositório em destaque no Trendshift, cobertura em blog técnico e paper no arXiv), o que amplia o alcance de qualquer falha pública.
+- **Para quem integra o agente:** uma falha em cascata no sistema hospedeiro, se uma exceção de rede não tratada não for isolada (ver RQ-06, na Seção 5).
+- **Para a comunidade de benchmark:** conclusões distorcidas ao comparar modelos, se a variabilidade do "LLM-como-juiz" não for reportada junto com os números (ver Seção 8).
 
 ---
 
-**Referências:** `inference/react_agent.py`, `inference/prompt.py`, `inference/tool_visit.py`, `.env.example`, README.md — todos em https://github.com/Alibaba-NLP/DeepResearch (commit `f72f75d`).
+**Referências:** `inference/react_agent.py`, `inference/prompt.py`, `inference/tool_visit.py`, `inference/tool_file.py`, `inference/file_tools/idp.py`, `inference/file_tools/video_analysis.py`, `.env.example`, `README.md` — todos em https://github.com/Alibaba-NLP/DeepResearch (commit `f72f75d`).
